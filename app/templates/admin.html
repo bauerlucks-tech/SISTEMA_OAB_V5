@@ -1,46 +1,19 @@
-
-<!doctype html>
-<html>
-<head>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-.box{position:absolute;border:2px solid red;cursor:move}
-#wrap{position:relative}
-</style>
-</head>
-<body class="p-3">
-
-<h3>Configurar PSD</h3>
-
-<form method="post" enctype="multipart/form-data">
-<input type="file" name="psd" required>
-<button class="btn btn-primary">Analisar</button>
-</form>
-
-<div id="wrap">
-<img src="/static/preview.png" id="img">
-{% for c,p in template.campos.items() %}
-<div class="box" style="left:{{p.x}}px;top:{{p.y}}px" data-name="{{c}}">{{c}}</div>
-{% endfor %}
-</div>
-
-<a href="/operacao" class="btn btn-success mt-3">Ir para operação</a>
+<h4>Área da foto</h4>
+<canvas id="fotoCanvas"></canvas>
 
 <script>
-document.querySelectorAll(".box").forEach(b=>{
- let oX,oY
- b.onmousedown=e=>{
-  oX=e.offsetX;oY=e.offsetY
-  document.onmousemove=m=>{
-   b.style.left=(m.pageX-oX)+"px"
-   b.style.top=(m.pageY-oY)+"px"
-  }
-  document.onmouseup=_=>{
-   document.onmousemove=null
-  }
- }
-})
-</script>
+let c=document.getElementById("fotoCanvas")
+let ctx=c.getContext("2d")
+let start=null
 
-</body>
-</html>
+c.onmousedown=e=>start={x:e.offsetX,y:e.offsetY}
+c.onmouseup=e=>{
+ let box={
+   x:start.x,
+   y:start.y,
+   w:e.offsetX-start.x,
+   h:e.offsetY-start.y
+ }
+ fetch("/salvar_foto",{method:"POST",body:JSON.stringify(box)})
+}
+</script>

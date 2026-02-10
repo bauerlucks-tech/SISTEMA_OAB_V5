@@ -1,29 +1,58 @@
-
 from psd_tools import PSDImage
-from PIL import Image,ImageDraw
-from reportlab.pdfgen import canvas
+from PIL import Image, ImageDraw, ImageFont
+from reportlab.platypus import SimpleDocTemplate, Image as RLImage, PageBreak
 
-def analisar_psd(p):
-    psd=PSDImage.open(p)
-    campos={}
-    for l in psd.descendants():
-        if l.is_text_layer():
-            b=l.bbox
-            campos[l.name]={"x":int(b.x1),"y":int(b.y1)}
-    psd.composite().save("static/preview.png")
+TEMPLATE = {
+    "frente": {"campos": {}, "foto": None},
+    "verso": {"campos": {}, "foto": None}
+}
+
+def analisar_psd(path):
+    psd = PSDImage.open(path)
+    campos = {}
+
+    for layer in psd.descendants():
+        if layer.is_text_layer():
+            box = layer.bbox
+            campos[layer.name] = {
+                "x": int(box.x1),
+                "y": int(box.y1),
+                "size": int(layer.text_data.font_size)
+            }
+
+    preview = psd.composite()
+    preview.save(f"static/{path}.png")
+
     return campos
 
-def render_final(template,dados,foto):
-    img=Image.open("static/preview.png").copy()
-    d=ImageDraw.Draw(img)
 
-    for c,p in template["campos"].items():
-        d.text((p["x"],p["y"]),dados.get(c,""),fill="black")
+def render_face(face, dados, foto):
+    base = Image.open(f"static/{face}.psd.png").copy()
+    draw = ImageDraw.Draw(base)
 
-    img.save("final.png")
+    for nome, c in TEMPLATE[face]["campos"].items():
+        draw.text((c["x"], c["y"]), dados.get(nome, ""), fill="black")
 
-    c=canvas.Canvas("final.pdf")
-    c.drawImage("final.png",0,0,400,250)
-    c.save()
+    if TEMPLATE[face]["foto"]:
+        x,y,w,h = TEMPLATE[face]["foto"]
+        f = Image.open(foto).resize((w,h))
+        base.paste(f,(x,y))
 
-    return open("final.pdf","rb").read()
+    return base
+
+
+def gerar_carteirinha(dados, foto_path):
+    frente = render_face("frente", dados, foto_path)
+    verso  = render_face("verso", dados, foto_path)
+
+    frente.save("static/final_frente.png")
+    verso.save("static/final_verso.png")
+
+    pdf = SimpleDocTemplate("static/final.pdf")
+    pdf.build([
+        RLImage("static/final_frente.png", 400,250),
+        PageBreak(),
+        RLImage("static/final_verso.png", 400,250)
+    ])
+
+    return "static/final.pdf"
